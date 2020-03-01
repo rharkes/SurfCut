@@ -1,3 +1,7 @@
+// setup Clij and push image to GPU
+run("CLIJ Macro Extensions", "cl_device=");
+Ext.CLIJ_clear();
+setBatchMode(false);
 /////////////////////////////////////////////////////////////////////////
 ////////=======SurfCut=======////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -40,128 +44,124 @@ print(imgPath);
 File.makeDirectory(imgDir+File.separator+"SurfCutCalibrate");
 
 TRad = 3;
-TThld = 20;
-TTop = 6;
-TBot = 8;
-//TWth = 0;
-//THgt = 0;
-//TDpt = 0;
 
-Satisfied = false;
-while (Satisfied==false){ 
-	///Ask the user about Gaussian Blur and Threshold values to test
-	Dialog.create("SurfCut Parameters");
-	Dialog.addMessage("1) Choose Gaussian blur radius");
-	Dialog.addNumber("Radius\t", TRad);
-	Dialog.addMessage("2) Choose the intensity threshold\nfor surface detection\n(Between 0 and 255)");
-	Dialog.addNumber("Threshold\t", TThld);
-	Dialog.show();
-	  
-	Rad = Dialog.getNumber();
-	Thld = Dialog.getNumber();
+// Push image to GPU
+Ext.CLIJ_push(imgName);
 
-	TRad = Rad;
-	TThld = Thld;
+// Blur the image
+blurredImage = "Blurred";
+Ext.CLIJ_blur3D(imgName, blurredImage, TRad, TRad, 1)
+
+Ext.CLIJ_pull(blurredImage);
+
+selectImage(blurredImage);
+
+//Calculate the threshold for edge detection (sample borders)
+getDimensions(width, height, channels, slices, frames);
+maxx = newArray(slices);
+stdx = newArray(slices);
+
+// calculate the threshold
+for(a=1; a<slices+1; a++){	//get Maximum Intensity in every slice - sd intensity
+	setSlice(a);
+	getRawStatistics(area, mean, min, max, std, histogram);
+	maxx[a-1]=max;
+	stdx[a-1]=std;	
+}
+Array.getStatistics(maxx, min, max, mean, stdDev);
+maxx_min=min;
+Array.getStatistics(stdx, min, max, mean, stdDev);
+
+thresholdedImage = "Threshold";
+Ext.CLIJx_threshold(blurredImage, thresholdedImage, maxx_min-min);
+Ext.CLIJ_pull(thresholdedImage);
+run("Multiply...", "value=255.000 stack");
+
+// calculate the boundaries 
+for(a=1; a<slices+1; a++){
+	setSlice(a);
+	setThreshold(1,255);
+	run("Create Selection");
+	run("Measure");
+	run("Select None");
+}
+
+peri_areaprev=1000;
+
+for(a=0; a<nResults; a++){
 	
-	///Image pre-processing
-	setBatchMode(true);
-	run("8-bit");
-	run("Gaussian Blur...", "sigma=&Rad stack");
+	peri_area=getResult("Perim.", a)/getResult("Area", a);
+	print(peri_area);
 	
-	///Threshold
-	setThreshold(0, Thld);
-	run("Convert to Mask", "method=Default background=Light");
-	run("Invert", "stack");
-	
-	//Edge detect
-	getDimensions(w, h, channels, slices, frames);
-	print (slices);
-	for (img=0; img<slices; img++){
-		print("Edge detect projection" + img + "/" + slices);
-		slice = img+1;
-		selectWindow(imgName);
-		run("Z Project...", "stop=&slice projection=[Max Intensity]");
+	if(peri_area<(0.9*peri_areaprev)){
+		
+		TBot=a;
+		peri_areaprev=peri_area;
+		
+	}else{
+		a=10000;
 	}
-	print("Concatenate images");
-	run("Images to Stack", "name=Stack-0 title=[]");
-	run("Duplicate...", "title=Stack-invert duplicate");
-	run("Invert", "stack");
-	wait(1000);
-	selectWindow(imgName);
-	close();
-	open(imgPath);
-
-	setBatchMode("exit and display");
-
-	getVoxelSize(width, height, depth, unit);
-	print("Detected voxel size:\nWidth --> " + width + "\nHeight --> " + height + "\nDepth --> " + depth + "\nUnit --> " + unit);
-
-	IndWth1 = width*1000;
-	IndWth2 = round(IndWth1);
-	RdWth = IndWth2/1000;
-	IndHgt1 = height*1000;
-	IndHgt2 = round(IndHgt1);
-	RdHgt = IndHgt2/1000;
-	IndDpt1 = depth*1000;
-	IndDpt2 = round(IndDpt1);
-	RdDpt = IndDpt2/1000;
-
-	run("3D Viewer");
-	call("ij3d.ImageJ3DViewer.setCoordinateSystem", "false");
-	call("ij3d.ImageJ3DViewer.add", "Stack-invert", "None", "Stack-invert", "0", "true", "true", "true", "2", "0");
-
-	///Satisfied?
-	waitForUser("Check Edge Detect", "Check the quality of Edge Detection\nThen click OK.");
-	Dialog.create("Satisfied with Edge Detection?");
-	Dialog.addMessage("If you are not satisfied, do not tick the box and just click Ok.\nThis will take you back to the previous step for the selection of the\nGaussian Blur and Threshold values.\nOtherwise tick the box and click OK to proceed to the next step.");
-	Dialog.addCheckbox("Satisfied?", false);
-	Dialog.show();
-	Satisfied = Dialog.getCheckbox();
-	wait(1000);
-	call("ij3d.ImageJ3DViewer.close");
-	close("Stack-invert");
-	if (Satisfied){
-		close(imgName);
-	} else {
-		close("Stack-0");
 }
+
+TTop=TBot-2;
+
+selectImage(thresholdedImage);
+run("Fill Holes", "stack");
+
+close(blurredImage);
+Ext.CLIJ_clear();
+
+//Edge detect
+selectImage(thresholdedImage);
+
+for(a = 1; a < slices; a++){
+	setSlice(a);
+	setThreshold(1, 255);
+	run("Create Selection");
+	setSlice(a + 1);
+	run("Fill", "slice");
+	run("Select None");
 }
+
+getVoxelSize(width, height, depth, unit);
+print(width + " " + height + " " + depth);
+print("Detected voxel size:\nWidth --> " + width + "\nHeight --> " + height + "\nDepth --> " + depth + "\nUnit --> " + unit);
+
+RdWth = round(width*1000)/1000;
+RdHgt = round(height*1000)/1000;
+RdDpt = round(depth*1000)/1000;
+
 
 Satisfied = false;
+
 while (Satisfied==false){ 
+	
 	///Ask the user about cut depth parameters
 	Dialog.create("SurfCut Parameters");
-	Dialog.addMessage("3) Choose the depths between which\nthe stack will be cut relative to the\ndetected surface in micrometers");
-	Dialog.addNumber("Top\t", TTop);
-	Dialog.addNumber("Bottom\t", TBot);
 	Dialog.addMessage("4) Voxel properties in micrometers\nare automatically retrieved from the\nimage metadata.\n!!!\nIf no value was available they are all\nset to 1.\nUse rounded values (for example\n0.500 instead of 0.501...) and with\na maximum 3 decimals");
 	Dialog.addNumber("Width\t", RdWth);
 	Dialog.addNumber("height\t", RdHgt);
 	Dialog.addNumber("Depth\t", RdDpt);
 	Dialog.show();
 	
-	Top = Dialog.getNumber();
-	Bot = Dialog.getNumber();
 	Wth = Dialog.getNumber();
 	Hgt = Dialog.getNumber();
 	Dpt = Dialog.getNumber();
 	
-	TTop = Top;
-	TBot = Bot;
-	//TWth = Wth;
-	//THgt = Hgt;
-	//TDpt = Dpt;
-
 	///Parameters
-	Cut1= Top/Dpt;
-	Cut2= Bot/Dpt;
+	Cut1= TTop/ Dpt;
+	Cut2= TBot/ Dpt;
+
+	print(Cut1)
+	print(Cut2)
+	print(TTop + " " +TBot)
 
 	///Add slices at begining
-	setBatchMode(true);
-	open(imgPath);
-	selectWindow(imgName);
+	
 	getDimensions(w, h, channels, slices, frames);
 	newImage("Untitled", "8-bit white", w, h, Cut2);
+
+	// 
 
 	//Concatenate stacks
 	print("Concatenate images");
@@ -231,6 +231,7 @@ while (Satisfied==false){
 	Dialog.addCheckbox("Satisfied?", false);
 	Dialog.show();
 	Satisfied = Dialog.getCheckbox();
+	
 	if (Satisfied){
 		wait(1000);
 		Dialog.create("Save SurfCut Calibration Parameters");
