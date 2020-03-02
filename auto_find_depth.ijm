@@ -15,7 +15,7 @@ run("32-bit");
 run("Convolve...", "text1=[-1 -1 -1 -1 -1\n-1 -1 -1 -1 -1\n-1 -1 24 -1 -1\n-1 -1 -1 -1 -1\n-1 -1 -1 -1 -1\n] normalize stack");
 run("Gaussian Blur...", "sigma=2 stack");
 run("Conversions...", " ");
-run("16-bit");
+run("16-bit"); //if pixelvalue <0 then set to 0
 run("Conversions...", "scale");
 run("Set Measurements...", "mean redirect=None decimal=3");
 roiManager("Delete");
