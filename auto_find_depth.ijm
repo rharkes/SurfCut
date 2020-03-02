@@ -8,13 +8,10 @@ run("Gaussian Blur...", "sigma=5");
 run("Find Maxima...", "prominence=10000 output=[Point Selection]");
 getSelectionBounds(x, y, width, height);
 close();
-print(x)
-print(y)
 selectWindow(name);
 makeRectangle(x-32, y-32, 64, 64);
 run("Crop");
 run("Convolve...", "text1=[-1 -1 -1 -1 -1\n-1 -1 -1 -1 -1\n-1 -1 24 -1 -1\n-1 -1 -1 -1 -1\n-1 -1 -1 -1 -1\n] normalize stack");
-
 run("Set Measurements...", "mean redirect=None decimal=3");
 run("Select All");
 roiManager("Add");
@@ -29,7 +26,7 @@ for (i = 0; i < nResults(); i++) {
 //beginning of moving mean
 meanxmm = Array.copy(meanx);
 x = Array.copy(meanx);
-windowC=2;
+windowC=2; //window is 1+2*windowC
 for (i=0;i<meanx.length;i++){ 
 	if (i<windowC){ //start
 		temp = Array.slice(meanx,0,1+i+windowC);
@@ -42,13 +39,18 @@ for (i=0;i<meanx.length;i++){
 	meanxmm[i] = mean;
 	x[i]=i;
 }
-Plot.create("Title", "X-axis Label", "Y-axis Label", x, meanx)
-Plot.add("line", x, meanxmm)
 //find first top
+maxIdx=newArray(1);
+maxVal=newArray(1);
 for (i = 1; i < meanxmm.length; i++) {
 	if (meanxmm[i]<meanxmm[i-1]){
-		maxIdx=i;
+		maxIdx[0] = i-1;
+		maxVal[0] = meanxmm[i-1];
 		break;
 	}
 }
-print(maxIdx)
+Plot.create("Title", "X-axis Label", "Y-axis Label", x, meanx);
+Plot.add("line", x, meanxmm);
+Plot.add("point", maxIdx, maxVal);
+Plot.setLegend("orignal\t5-window move mean", "top-right");
+print(maxIdx[0]);
