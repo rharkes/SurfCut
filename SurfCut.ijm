@@ -66,6 +66,9 @@ print("[INFO] Detected voxel size: Width: " + voxWidth
 	+ " Depth: " 
 	+ voxDepth + " Unit: " 
 	+ voxUnit);
+	
+// ----------------------------------------------------------------------
+time = getTime();
 
 // ----------------------------------------------------------------------
 // Ask the user about cut depth parameters
@@ -342,3 +345,4 @@ if (isOpen("Results")){
 roiManager("reset");
 
 print("[WORKFLOW FINISHED]");
+print("AutoSurfCut took " + (getTime() - time)  + " msec");
