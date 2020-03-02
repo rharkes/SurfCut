@@ -13,7 +13,11 @@ makeRectangle(x-32, y-32, 64, 64);
 run("Crop");
 run("32-bit");
 run("Convolve...", "text1=[-1 -1 -1 -1 -1\n-1 -1 -1 -1 -1\n-1 -1 24 -1 -1\n-1 -1 -1 -1 -1\n-1 -1 -1 -1 -1\n] normalize stack");
-run("Set Measurements...", "min redirect=None decimal=3");
+run("Gaussian Blur...", "sigma=2 stack");
+run("Conversions...", " ");
+run("16-bit"); //if pixelvalue <0 then set to 0
+run("Conversions...", "scale");
+run("Set Measurements...", "mean redirect=None decimal=3");
 roiManager("Delete");
 run("Select All");
 roiManager("Add");
@@ -22,7 +26,7 @@ roiManager("Multi Measure");
 meanx=newArray(nResults());
 maxIdx = 0;
 for (i = 0; i < nResults(); i++) {
-	meanx[i]=getResult("Max1", i);
+	meanx[i]=getResult("Mean1", i);
 }
 
 //beginning of moving mean
