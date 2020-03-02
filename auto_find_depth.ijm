@@ -11,8 +11,10 @@ close();
 selectWindow(name);
 makeRectangle(x-32, y-32, 64, 64);
 run("Crop");
+run("32-bit");
 run("Convolve...", "text1=[-1 -1 -1 -1 -1\n-1 -1 -1 -1 -1\n-1 -1 24 -1 -1\n-1 -1 -1 -1 -1\n-1 -1 -1 -1 -1\n] normalize stack");
-run("Set Measurements...", "mean redirect=None decimal=3");
+run("Set Measurements...", "min redirect=None decimal=3");
+roiManager("Delete");
 run("Select All");
 roiManager("Add");
 roiManager("Multi Measure");
@@ -20,13 +22,13 @@ roiManager("Multi Measure");
 meanx=newArray(nResults());
 maxIdx = 0;
 for (i = 0; i < nResults(); i++) {
-	meanx[i]=getResult("Mean1", i);
+	meanx[i]=getResult("Max1", i);
 }
 
 //beginning of moving mean
 meanxmm = Array.copy(meanx);
 x = Array.copy(meanx);
-windowC=2; //window is 1+2*windowC
+windowC=3; //window is 1+2*windowC
 for (i=0;i<meanx.length;i++){ 
 	if (i<windowC){ //start
 		temp = Array.slice(meanx,0,1+i+windowC);
@@ -42,7 +44,7 @@ for (i=0;i<meanx.length;i++){
 //find first top
 maxIdx=newArray(1);
 maxVal=newArray(1);
-for (i = 1; i < meanxmm.length; i++) {
+for (i = 3; i < meanxmm.length; i++) {
 	if (meanxmm[i]<meanxmm[i-1]){
 		maxIdx[0] = i-1;
 		maxVal[0] = meanxmm[i-1];
