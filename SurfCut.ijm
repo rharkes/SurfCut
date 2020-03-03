@@ -71,23 +71,6 @@ print("[INFO] Detected voxel size: Width: " + voxWidth
 time = getTime();
 
 // ----------------------------------------------------------------------
-// Ask the user about cut depth parameters
-print("[INFO] verifying calibration.");
-Dialog.create("SurfCut Parameters");
-Dialog.addMessage("Please verify image calibration\n Voxel dimensions:");
-Dialog.addNumber("Width\t", voxWidth);
-Dialog.addNumber("height\t", voxHeight);
-Dialog.addNumber("Depth\t", voxDepth);
-Dialog.show();
-
-voxWidth = Dialog.getNumber();
-voxHeight = Dialog.getNumber();
-voxDepth = Dialog.getNumber();
-
-selectImage(imgName);
-setVoxelSize(voxWidth, voxHeight, voxDepth, voxUnit);
-
-// ----------------------------------------------------------------------
 // get image dimensions
 print("[INFO] processing stack.");
 selectImage(imgName);
